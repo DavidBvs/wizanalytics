@@ -12,6 +12,8 @@ use App\Config\Business;
 use App\Exception\RessourceException;
 use App\Utils\ResponseContent;
 
+use Doctrine\MongoDB\Connection;
+
 /**
 * Api Controller : process parameters validation, create response
 */
@@ -20,33 +22,37 @@ class ApiController extends Controller
 	protected $originDevice;
 	
 	/**
-	* Main api function controller
+	* Main api function controller for POST method
+	* Manage with an array of data set
 	*/
-	public function index(Request $request)
+	public function apiPost(Request $request) :Response
+    {
+		return new Response(
+			'<html><body>Here process for an array of data set. Same process and function as apitGet are used, but dealing with an array.</body></html>'
+        );
+	}
+	
+	/**
+	* Main api function controller for GET method
+	* Manage with a single data set
+	*/
+	public function apiGet(Request $request) :Response
     {
 		$queryParameters = $request->query->all();
 		
 		$this->originDevice = $this->detectOriginDevice($_SERVER['HTTP_USER_AGENT']);
 		
 		// Check if existing cookies
-		$this->getAndSetCookies($queryParameters);
+		$this->getAndSetCookies($queryParameters, $request->cookies);
 		
-		// Switch on GET or POST method
-		switch ($request->getMethod()) {
-			case 'GET': // Manage with a single data set
-				
-				// Check parameters and apply business rules
-				$contentResponse = $this->parametersValidation($queryParameters);
-				
-				// Create an appropriate response
-				return $this->setResponse($contentResponse);
-				break;
-			case 'POST': // Manage with a array of data set
-				
-				break;
-			default: 
-		}
-
+		// Check parameters and apply business rules
+		$contentResponse = $this->parametersValidation($queryParameters);
+		
+		// Get last call where 'Hit Type' = $queryParameters['t'] AND 'Tracking Id' = $queryParameters['tid']
+		// if timelaps < 1sec do nothing // else save 
+		
+		// Create an appropriate response
+		return $this->setResponse($contentResponse);
     }
 	
 	/**
@@ -86,8 +92,9 @@ class ApiController extends Controller
 	protected function setResponse($contentResponse)
 	{
 		$response = new Response();
-		$response->setContent(json_encode($contentResponse));
-		$response->setStatusCode(Response::HTTP_OK);
+		$response->setContent(json_encode([$contentResponse->result, $contentResponse->message]));
+		//$response->setStatusCode(Response::HTTP_OK);
+		$response->setStatusCode($contentResponse->code);
 		$response->headers->set('Content-Type', 'text/json');
 		return $response;
 	}
@@ -126,7 +133,7 @@ class ApiController extends Controller
 		} catch (Exception $e) {
 			return new ResponseContent(array(
 				'result' => 'ERROR',
-				'code' => '400',
+				'code' => Response::HTTP_BAD_REQUEST,
 				'type' => get_class($e),
 				'message' => $e->getMessage()
 			));
@@ -134,7 +141,7 @@ class ApiController extends Controller
 			
 			return new ResponseContent(array(
 				'result' => 'ERROR',
-				'code' => '404',
+				'code' => Response::HTTP_BAD_REQUEST,
 				'type' => $e->type,
 				'message' => $e->getMessage()
 			));
@@ -142,7 +149,7 @@ class ApiController extends Controller
 		
 		return new ResponseContent(array(
 			'result' => 'SUCCESS',
-			'code' => '200',
+			'code' => Response::HTTP_OK,
 			'type' => 'Process successfull',
 			'message' => null
 		));;
@@ -233,7 +240,7 @@ class ApiController extends Controller
 	{
 		$parameter = Business::getFieldsConfig('name', 'Version');
 		if (isset($queryParameters['v']) && !empty($queryParameters['v'])) {
-			if (floatval($queryParameters['v']) === Business::SUPPORTED_VERSION) {
+			if (floatval($queryParameters['v']) === floatval(Business::SUPPORTED_VERSION)) {
 				return array('result' => true, 'message' => 'Version ok.');
 			} else {
 				throw new Exception('Version non supportée (version courante : ' . Business::SUPPORTED_VERSION . ').');

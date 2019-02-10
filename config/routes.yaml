@@ -5,6 +5,12 @@ php_info:
     path: /php_info/
     controller: App\Controller\AdminController::displayPhpInfo
 
-app_api:
+app_api_get:
     path: /collect/
-    controller: App\Controller\ApiController::index
+    controller: App\Controller\ApiController::apiGet
+    methods:  [GET]
+
+app_api_post:
+    path: /collect/
+    controller: App\Controller\ApiController::apiPost
+    methods:  [POST]
