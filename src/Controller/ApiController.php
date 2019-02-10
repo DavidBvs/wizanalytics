@@ -11,6 +11,7 @@ use Symfony\Component\Config\Definition\Exception\Exception;
 use App\Config\Business;
 use App\Exception\RessourceException;
 use App\Utils\ResponseContent;
+use App\DataBase\MongoDBManager;
 
 use Doctrine\MongoDB\Connection;
 
@@ -48,8 +49,34 @@ class ApiController extends Controller
 		// Check parameters and apply business rules
 		$contentResponse = $this->parametersValidation($queryParameters);
 		
-		// Get last call where 'Hit Type' = $queryParameters['t'] AND 'Tracking Id' = $queryParameters['tid']
-		// if timelaps < 1sec do nothing // else save 
+		//Connection to MongoDB
+		try {
+			$db = MongoDBManager::getInstance();
+			
+			// Add timestamp
+			$queryParameters['timestamp'] = time();
+			
+			// Insert the record if the latest record is older than 1 second
+			$lastRecord = $db->findLastCall($queryParameters['t'], $queryParameters['tid']);
+			if ($lastRecord['timestamp'] != $queryParameters['timestamp'])  {
+				$db->insertRecord($queryParameters);
+			} else {
+				
+				$contentResponse = new ResponseContent(array(
+					'result' => 'NOT INSERTED',
+					'code' => Response::HTTP_OK,
+					'type' => null,
+					'message' => 'The latest record isn\'t older than 1 second.'
+				));
+			}
+		} catch (Exception $e) {
+			$contentResponse = new ResponseContent(array(
+				'result' => 'ERROR',
+				'code' => Response::HTTP_INTERNAL_SERVER_ERROR,
+				'type' => get_class($e),
+				'message' => 'DataBase issue : ' . $e->getMessage()
+			));
+		}
 		
 		// Create an appropriate response
 		return $this->setResponse($contentResponse);
