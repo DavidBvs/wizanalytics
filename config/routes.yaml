@@ -1,3 +1,10 @@
 #index:
 #    path: /
 #    controller: App\Controller\DefaultController::index
+php_info:
+    path: /php_info/
+    controller: App\Controller\AdminController::displayPhpInfo
+
+app_api:
+    path: /collect/
+    controller: App\Controller\ApiController::index
